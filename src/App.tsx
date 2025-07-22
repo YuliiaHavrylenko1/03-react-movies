@@ -1,35 +1,68 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState, useEffect } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
 
-function App() {
-  const [count, setCount] = useState(0)
+import SearchBar from './components/SearchBar/searchBar';
+import MovieGrid from './components/MovieGrid/movieGrid';
+import Loader from './components/Loader/loader';
+import ErrorMessage from './components/ErrorMessage/errorMessage';
+import MovieModal from './components/MovieModal/movieModal';
+
+import { fetchMovies } from './services/movieService';
+import type { Movie } from './types/movie';
+
+export default function App() {
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+
+  useEffect(() => {
+    if (!query) return;
+
+    setLoading(true);
+    setError('');
+    setMovies([]);
+
+    fetchMovies(query)
+      .then(results => {
+        if (results.length === 0) {
+          toast('No movies found for your request.');
+        }
+        setMovies(results);
+      })
+      .catch(() => {
+        setError('There was an error, please try again...');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [query]);
+
+  const handleSearch = (searchQuery: string) => {
+    setQuery(searchQuery);
+  };
+
+  const handleSelectMovie = (movie: Movie) => {
+    setSelectedMovie(movie);
+    document.body.style.overflow = 'hidden'; // блокування скролу при відкритті модалки
+  };
+
+  const handleCloseModal = () => {
+    setSelectedMovie(null);
+    document.body.style.overflow = ''; // розблокування скролу
+  };
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <SearchBar onSubmit={handleSearch} />
+      <Toaster />
+      {loading && <Loader />}
+      {error && <ErrorMessage />}
+      {!loading && !error && <MovieGrid movies={movies} onSelect={handleSelectMovie} />}
+      {selectedMovie && (
+        <MovieModal movie={selectedMovie} onClose={handleCloseModal} />
+      )}
     </>
-  )
+  );
 }
-
-export default App
